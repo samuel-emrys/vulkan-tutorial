@@ -1,0 +1,80 @@
+# MacOS
+.DS_Store
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build files
+build/
+
+# Tags
+tags
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+CMakeUserPresets.json
+
+# Python virtual environment
+venv/
+
+# Intermediate documentation build files
+latex/
+html/
+xml/
+api/
+
+# Data files
+data/
+
+# Clangd
+.cache/
+
+# Image output
+*.ppm
+
+# YCM Files
+.conan_ycm_path
+.ycm_extra_conf.py
+conan_ycm_extra_conf.py
+conan_ycm_flags.json
+
