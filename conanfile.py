@@ -45,8 +45,9 @@ class VulkanConan(ConanFile):
         self.tool_requires("cmake/[>=3.22.0]")
 
     def requirements(self):
-        self.requires("vulkan-headers/1.3.243.0")
-        self.requires("vulkan-loader/1.3.243.0")
+        self.requires("vulkan-headers/1.3.239.0")
+        self.requires("vulkan-loader/1.3.239.0")
+        self.requires("vulkan-validationlayers/1.3.239.0")
         self.requires("glfw/3.3.8")
         self.requires("glm/cci.20230113")
 

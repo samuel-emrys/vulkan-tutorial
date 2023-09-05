@@ -4,6 +4,14 @@ This project is a result of following https://vulkan-tutorial.com, and has been 
 
 ## Build
 
+### Release
+
 ```bash
 $ conan build .
+```
+
+### Debug
+
+```bash
+$ conan build . -s "&:build_type=Debug"
 ```

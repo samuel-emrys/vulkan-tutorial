@@ -78,3 +78,5 @@ data/
 conan_ycm_extra_conf.py
 conan_ycm_flags.json
 
+# GDB
+.gdb_history

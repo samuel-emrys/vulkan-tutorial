@@ -1,6 +1,7 @@
 # Find external dependencies
 find_package(VulkanHeaders REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(vulkan-validationlayers REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
 
@@ -34,6 +35,7 @@ target_link_libraries(${PROJECT_EXE}
   PUBLIC 
   Vulkan::Vulkan
   vulkan-headers::vulkan-headers
+  vulkan-validationlayers::vulkan-validationlayers
   glfw
   glm::glm
 )
