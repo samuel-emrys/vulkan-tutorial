@@ -23,26 +23,29 @@ const bool gENABLE_VALIDATION_LAYERS = false;
 const bool gENABLE_VALIDATION_LAYERS = true;
 #endif
 
-auto createDebugUtilsMessengerEXT(VkInstance prInstance,
-                                  const VkDebugUtilsMessengerCreateInfoEXT* prCreateInfo,
-                                  const VkAllocationCallbacks* prAllocator,
-                                  VkDebugUtilsMessengerEXT* prDebugMessenger)
-    -> VkResult {
-    auto pvFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-        prInstance,
-        "vkCreateDebugUtilsMessengerEXT");
+auto createDebugUtilsMessengerEXT(
+    VkInstance prInstance,
+    const VkDebugUtilsMessengerCreateInfoEXT* prCreateInfo,
+    const VkAllocationCallbacks* prAllocator,
+    VkDebugUtilsMessengerEXT* prDebugMessenger
+) -> VkResult {
+    auto pvFunc = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(prInstance, "vkCreateDebugUtilsMessengerEXT")
+    );
     if (pvFunc != nullptr) {
         return pvFunc(prInstance, prCreateInfo, prAllocator, prDebugMessenger);
     }
     return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-auto destroyDebugUtilsMessengerEXT(VkInstance prInstance,
-                                   VkDebugUtilsMessengerEXT prDebugMessenger,
-                                   const VkAllocationCallbacks* prAllocator) {
-    auto pvFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-        prInstance,
-        "vkDestroyDebugUtilsMessengerEXT");
+auto destroyDebugUtilsMessengerEXT(
+    VkInstance prInstance,
+    VkDebugUtilsMessengerEXT prDebugMessenger,
+    const VkAllocationCallbacks* prAllocator
+) {
+    auto pvFunc = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+        vkGetInstanceProcAddr(prInstance, "vkDestroyDebugUtilsMessengerEXT")
+    );
     if (pvFunc != nullptr) {
         pvFunc(prInstance, prDebugMessenger, prAllocator);
     } else {
@@ -103,7 +106,7 @@ class HelloTriangleApplication {
                 = static_cast<uint32_t>(gVALIDATION_LAYERS.size());
             vCreateInfo.ppEnabledLayerNames = gVALIDATION_LAYERS.data();
             populateDebugMessengerCreateInfo(vDebugCreateInfo);
-            vCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&vDebugCreateInfo;
+            vCreateInfo.pNext = &vDebugCreateInfo;
         } else {
             vCreateInfo.enabledLayerCount = 0;
             vCreateInfo.pNext = nullptr;
@@ -169,19 +172,23 @@ class HelloTriangleApplication {
         vkGetPhysicalDeviceQueueFamilyProperties(prDevice, &vQueueFamilyCount, nullptr);
 
         std::vector<VkQueueFamilyProperties> vQueueFamilies(vQueueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(prDevice,
-                                                 &vQueueFamilyCount,
-                                                 vQueueFamilies.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(
+            prDevice,
+            &vQueueFamilyCount,
+            vQueueFamilies.data()
+        );
 
         size_t vIndex{};
         auto vPresentSupport = static_cast<VkBool32>(false);
         for (const auto& vQueueFamily : vQueueFamilies) {
             if (static_cast<bool>(vQueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
                 vIndices.graphicsFamily = vIndex;
-                vkGetPhysicalDeviceSurfaceSupportKHR(prDevice,
-                                                     vIndex,
-                                                     mSurface,
-                                                     &vPresentSupport);
+                vkGetPhysicalDeviceSurfaceSupportKHR(
+                    prDevice,
+                    vIndex,
+                    mSurface,
+                    &vPresentSupport
+                );
                 if (static_cast<bool>(vPresentSupport)) {
                     vIndices.presentFamily = vIndex;
                 }
@@ -233,23 +240,27 @@ class HelloTriangleApplication {
             != VK_SUCCESS) {
             throw std::runtime_error("failed to create logical device!");
         }
-        vkGetDeviceQueue(mLogicalDevice,
-                         vIndices.graphicsFamily.value(),
-                         0,
-                         &mGraphicsQueue);
-        vkGetDeviceQueue(mLogicalDevice,
-                         vIndices.presentFamily.value(),
-                         0,
-                         &mPresentQueue);
+        vkGetDeviceQueue(
+            mLogicalDevice,
+            vIndices.graphicsFamily.value(),
+            0,
+            &mGraphicsQueue
+        );
+        vkGetDeviceQueue(
+            mLogicalDevice,
+            vIndices.presentFamily.value(),
+            0,
+            &mPresentQueue
+        );
     }
 
-    void populateDebugMessengerCreateInfo(
-        VkDebugUtilsMessengerCreateInfoEXT&
-            rCreateInfo) { // NOLINT [readability-convert-member-functions-to-static]
+    // [readability-convert-member-functions-to-static]
+    void populateDebugMessengerCreateInfo( // NOLINT
+        VkDebugUtilsMessengerCreateInfoEXT& rCreateInfo
+    ) {
         rCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         rCreateInfo.messageSeverity
-            = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT // NOLINT
-                                                              // [hicpp-signed-bitwise]
+            = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT // NOLINT [hicpp-signed-bitwise]
             | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
             | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         rCreateInfo.messageType
@@ -266,25 +277,29 @@ class HelloTriangleApplication {
         }
         VkDebugUtilsMessengerCreateInfoEXT vCreateInfo{};
         populateDebugMessengerCreateInfo(vCreateInfo);
-        if (createDebugUtilsMessengerEXT(mInstance,
-                                         &vCreateInfo,
-                                         nullptr,
-                                         &mDebugMessenger)
+        if (createDebugUtilsMessengerEXT(
+                mInstance,
+                &vCreateInfo,
+                nullptr,
+                &mDebugMessenger
+            )
             != VK_SUCCESS) {
             throw std::runtime_error("failed to set up debug messenger!");
         }
     }
 
-    VKAPI_ATTR static auto VKAPI_CALL
-    debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT rMessageSeverity,
-                  VkDebugUtilsMessageTypeFlagsEXT rMessageType,
-                  const VkDebugUtilsMessengerCallbackDataEXT* prCallbackData,
-                  void* prUserData) -> VkBool32 {
+    VKAPI_ATTR static auto VKAPI_CALL debugCallback(
+        VkDebugUtilsMessageSeverityFlagBitsEXT rMessageSeverity,
+        VkDebugUtilsMessageTypeFlagsEXT rMessageType,
+        const VkDebugUtilsMessengerCallbackDataEXT* prCallbackData,
+        void* prUserData
+    ) -> VkBool32 {
         std::cerr << "validation layer: " << prCallbackData->pMessage << std::endl;
         return VK_FALSE;
     }
 
-    auto checkValidationLayerSupport() -> bool {
+    // [readability-convert-member-functions-to-static]
+    auto checkValidationLayerSupport() -> bool { // NOLINT
         uint32_t vLayerCount = 0;
         vkEnumerateInstanceLayerProperties(&vLayerCount, nullptr);
         std::vector<VkLayerProperties> vAvailableLayers(vLayerCount);
@@ -305,13 +320,16 @@ class HelloTriangleApplication {
         return true;
     }
 
-    auto getRequiredExtensions() -> std::vector<const char*> {
+    // [readability-convert-member-functions-to-static]
+    auto getRequiredExtensions() -> std::vector<const char*> { // NOLINT
         uint32_t vGlfwExtensionCount = 0;
         const char** pvGlfwExtensions
             = glfwGetRequiredInstanceExtensions(&vGlfwExtensionCount);
 
-        std::vector<const char*> vExtensions(pvGlfwExtensions,
-                                             pvGlfwExtensions + vGlfwExtensionCount);
+        std::vector<const char*> vExtensions(
+            pvGlfwExtensions,
+            pvGlfwExtensions + vGlfwExtensionCount
+        );
 
         if (gENABLE_VALIDATION_LAYERS) {
             vExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
