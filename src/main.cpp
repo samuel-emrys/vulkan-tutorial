@@ -7,8 +7,11 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <set>
 #include <stdexcept>
 #include <vector>
+
+#include "queuefamilies.h"
 
 const uint32_t gWIDTH = 800;
 const uint32_t gHEIGHT = 800;
@@ -19,7 +22,6 @@ const bool gENABLE_VALIDATION_LAYERS = false;
 #else
 const bool gENABLE_VALIDATION_LAYERS = true;
 #endif
-
 
 auto createDebugUtilsMessengerEXT(VkInstance prInstance,
                                   const VkDebugUtilsMessengerCreateInfoEXT* prCreateInfo,
@@ -42,7 +44,6 @@ auto destroyDebugUtilsMessengerEXT(VkInstance prInstance,
         prInstance,
         "vkDestroyDebugUtilsMessengerEXT");
     if (pvFunc != nullptr) {
-        std::cerr << "destroy instance not null" << std::endl;
         pvFunc(prInstance, prDebugMessenger, prAllocator);
     } else {
         std::cerr << "vkDestroyDebugUtilsMessengerExt doesn't exist!" << std::endl;
@@ -62,6 +63,11 @@ class HelloTriangleApplication {
     GLFWwindow* mWindow;
     VkInstance mInstance;
     VkDebugUtilsMessengerEXT mDebugMessenger;
+    VkSurfaceKHR mSurface;
+    VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
+    VkDevice mLogicalDevice = VK_NULL_HANDLE;
+    VkQueue mGraphicsQueue;
+    VkQueue mPresentQueue;
 
     void initWindow() {
         glfwInit();
@@ -111,16 +117,145 @@ class HelloTriangleApplication {
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
+        createSurface();
+        pickPhysicalDevice();
+        createLogicalDevice();
     }
 
-    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& rCreateInfo) { // NOLINT [readability-convert-member-functions-to-static]
+    void createSurface() {
+        if (glfwCreateWindowSurface(mInstance, mWindow, nullptr, &mSurface)
+            != VK_SUCCESS) {
+            throw std::runtime_error("failed to create window surface!");
+        }
+    }
+
+    void pickPhysicalDevice() {
+        uint32_t vDeviceCount = 0;
+        vkEnumeratePhysicalDevices(mInstance, &vDeviceCount, nullptr);
+
+        if (vDeviceCount == 0) {
+            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        }
+
+        std::vector<VkPhysicalDevice> vDevices(vDeviceCount);
+        vkEnumeratePhysicalDevices(mInstance, &vDeviceCount, vDevices.data());
+
+        for (const auto& vDevice : vDevices) {
+            if (isDeviceSuitable(vDevice)) {
+                mPhysicalDevice = vDevice;
+                break;
+            }
+        }
+
+        if (mPhysicalDevice == VK_NULL_HANDLE) {
+            throw std::runtime_error("failed to find a suitable GPU!");
+        }
+    }
+
+    auto isDeviceSuitable(VkPhysicalDevice prDevice) -> bool {
+        VkPhysicalDeviceProperties vDeviceProperties;
+        VkPhysicalDeviceFeatures vDeviceFeatures;
+        vkGetPhysicalDeviceProperties(prDevice, &vDeviceProperties);
+        vkGetPhysicalDeviceFeatures(prDevice, &vDeviceFeatures);
+
+        QueueFamilyIndices vIndices = findQueueFamilies(prDevice);
+        return vIndices.isComplete();
+    }
+
+    auto findQueueFamilies(VkPhysicalDevice prDevice) -> QueueFamilyIndices {
+        QueueFamilyIndices vIndices{};
+
+        uint32_t vQueueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(prDevice, &vQueueFamilyCount, nullptr);
+
+        std::vector<VkQueueFamilyProperties> vQueueFamilies(vQueueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(prDevice,
+                                                 &vQueueFamilyCount,
+                                                 vQueueFamilies.data());
+
+        size_t vIndex{};
+        auto vPresentSupport = static_cast<VkBool32>(false);
+        for (const auto& vQueueFamily : vQueueFamilies) {
+            if (static_cast<bool>(vQueueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+                vIndices.graphicsFamily = vIndex;
+                vkGetPhysicalDeviceSurfaceSupportKHR(prDevice,
+                                                     vIndex,
+                                                     mSurface,
+                                                     &vPresentSupport);
+                if (static_cast<bool>(vPresentSupport)) {
+                    vIndices.presentFamily = vIndex;
+                }
+            }
+            if (vIndices.isComplete()) {
+                break;
+            }
+            vIndex++;
+        }
+
+        return vIndices;
+    }
+
+    void createLogicalDevice() {
+        QueueFamilyIndices vIndices = findQueueFamilies(mPhysicalDevice);
+        std::vector<VkDeviceQueueCreateInfo> vQueueCreateInfos{};
+        std::set<uint32_t> vUniqueQueueFamilies
+            = {vIndices.graphicsFamily.value(), vIndices.presentFamily.value()};
+
+        float vQueuePriority = 1.0F;
+        for (uint32_t vQueueFamily : vUniqueQueueFamilies) {
+            VkDeviceQueueCreateInfo vQueueCreateInfo{};
+            vQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            vQueueCreateInfo.queueFamilyIndex = vQueueFamily;
+            vQueueCreateInfo.queueCount = 1;
+            vQueueCreateInfo.pQueuePriorities = &vQueuePriority;
+            vQueueCreateInfos.push_back(vQueueCreateInfo);
+        }
+
+        VkPhysicalDeviceFeatures vDeviceFeatures{};
+
+        VkDeviceCreateInfo vCreateInfo{};
+        vCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        vCreateInfo.queueCreateInfoCount
+            = static_cast<uint32_t>(vQueueCreateInfos.size());
+        vCreateInfo.pQueueCreateInfos = vQueueCreateInfos.data();
+        vCreateInfo.pEnabledFeatures = &vDeviceFeatures;
+        vCreateInfo.enabledExtensionCount = 0;
+
+        if (gENABLE_VALIDATION_LAYERS) {
+            vCreateInfo.enabledLayerCount
+                = static_cast<uint32_t>(gVALIDATION_LAYERS.size());
+            vCreateInfo.ppEnabledLayerNames = gVALIDATION_LAYERS.data();
+        } else {
+            vCreateInfo.enabledLayerCount = 0;
+        }
+
+        if (vkCreateDevice(mPhysicalDevice, &vCreateInfo, nullptr, &mLogicalDevice)
+            != VK_SUCCESS) {
+            throw std::runtime_error("failed to create logical device!");
+        }
+        vkGetDeviceQueue(mLogicalDevice,
+                         vIndices.graphicsFamily.value(),
+                         0,
+                         &mGraphicsQueue);
+        vkGetDeviceQueue(mLogicalDevice,
+                         vIndices.presentFamily.value(),
+                         0,
+                         &mPresentQueue);
+    }
+
+    void populateDebugMessengerCreateInfo(
+        VkDebugUtilsMessengerCreateInfoEXT&
+            rCreateInfo) { // NOLINT [readability-convert-member-functions-to-static]
         rCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        rCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT // NOLINT [hicpp-signed-bitwise]
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        rCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT // NOLINT [hicpp-signed-bitwise]
-                                | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                                | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        rCreateInfo.messageSeverity
+            = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT // NOLINT
+                                                              // [hicpp-signed-bitwise]
+            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        rCreateInfo.messageType
+            = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT // NOLINT [hicpp-signed-bitwise]
+            | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+            | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         rCreateInfo.pfnUserCallback = debugCallback;
         rCreateInfo.pUserData = nullptr;
     }
@@ -193,9 +328,10 @@ class HelloTriangleApplication {
 
     void cleanup() {
         if (gENABLE_VALIDATION_LAYERS) {
-            std::cerr << "Cleaning up debug utils messenger" << std::endl;
-            //destroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+            destroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
         }
+        vkDestroyDevice(mLogicalDevice, nullptr);
+        vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         vkDestroyInstance(mInstance, nullptr);
         glfwDestroyWindow(mWindow);
         glfwTerminate();
